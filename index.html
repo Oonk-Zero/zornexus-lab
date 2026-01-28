@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <title>Zornexus STEP4 Lab</title>
+
   <style>
     body {
-      font-family: system-ui, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       padding: 24px;
       max-width: 900px;
       margin: auto;
@@ -15,6 +16,7 @@
       min-height: 220px;
       margin-bottom: 12px;
       font-family: monospace;
+      font-size: 14px;
     }
     button {
       padding: 10px 16px;
@@ -22,27 +24,40 @@
       cursor: pointer;
     }
   </style>
+
+  <!-- ✅ ClickRank Ownership Verification Script -->
+  <script>
+    (function () {
+      var clickRankAi = document.createElement("script");
+      clickRankAi.src =
+        "https://js.clickrank.ai/seo/2f65a8aa-3f9c-4e88-a97c-a82f81030b08/script?t=" +
+        Date.now();
+      clickRankAi.async = true;
+      document.head.appendChild(clickRankAi);
+    })();
+  </script>
+
 </head>
 <body>
 
-<h2>STEP 3 YAML</h2>
-<textarea id="input" placeholder="Paste STEP3 YAML here..."></textarea>
+  <h2>STEP 3 YAML</h2>
+  <textarea id="input" placeholder="Paste STEP3 YAML here..."></textarea>
 
-<button onclick="mockFinalize()">Finalize (mock)</button>
+  <button onclick="mockFinalize()">Finalize (mock)</button>
 
-<h2>STEP 4 YAML</h2>
-<textarea id="output" placeholder="Result will appear here..."></textarea>
+  <h2>STEP 4 YAML</h2>
+  <textarea id="output" placeholder="Result will appear here..."></textarea>
 
-<script>
-function mockFinalize() {
-  const input = document.getElementById('input').value;
-  document.getElementById('output').value =
+  <script>
+    function mockFinalize() {
+      const input = document.getElementById("input").value;
+      document.getElementById("output").value =
 `# STEP4 (mock)
 # Typhoon polish output will be here
 
 ${input}`;
-}
-</script>
+    }
+  </script>
 
 </body>
 </html>
