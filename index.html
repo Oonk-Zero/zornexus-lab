@@ -1,19 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <title>Zornexus Lab</title>
-  <meta name="description" content="Zornexus is an experimental AI lab for AEO, GEO, and search performance optimization." />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zornexus STEP4 Lab</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 24px;
+      max-width: 900px;
+      margin: auto;
+    }
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      margin-bottom: 12px;
+      font-family: monospace;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <h1>Zornexus Lab</h1>
-  <p>
-    Experimental AI lab focused on Answer Engine Optimization (AEO),
-    Generative Engine Optimization (GEO), and search performance analysis.
-  </p>
-  <p>
-    This site is used for research, measurement, and internal tooling.
-  </p>
+
+<h2>STEP 3 YAML</h2>
+<textarea id="input" placeholder="Paste STEP3 YAML here..."></textarea>
+
+<button onclick="mockFinalize()">Finalize (mock)</button>
+
+<h2>STEP 4 YAML</h2>
+<textarea id="output" placeholder="Result will appear here..."></textarea>
+
+<script>
+function mockFinalize() {
+  const input = document.getElementById('input').value;
+  document.getElementById('output').value =
+`# STEP4 (mock)
+# Typhoon polish output will be here
+
+${input}`;
+}
+</script>
+
 </body>
 </html>
