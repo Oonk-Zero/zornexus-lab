@@ -2,30 +2,61 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <title>Zornexus STEP4 Lab</title>
+  <title>Zornexus STEP 3 → STEP 4 Lab</title>
 
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       padding: 24px;
-      max-width: 900px;
+      max-width: 960px;
       margin: auto;
+      background: #fafafa;
     }
+
+    h2 {
+      margin-top: 32px;
+    }
+
     textarea {
       width: 100%;
-      min-height: 220px;
+      min-height: 240px;
       margin-bottom: 12px;
       font-family: monospace;
       font-size: 14px;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      background: #fff;
     }
+
     button {
-      padding: 10px 16px;
+      padding: 12px 20px;
       font-size: 16px;
       cursor: pointer;
+      border-radius: 6px;
+      border: none;
+      background: #111;
+      color: #fff;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .error {
+      color: #c0392b;
     }
   </style>
 
-  <!-- ✅ ClickRank Ownership Verification Script -->
+  <!-- ✅ ClickRank Ownership Verification -->
   <script>
     (function () {
       var clickRankAi = document.createElement("script");
@@ -36,26 +67,90 @@
       document.head.appendChild(clickRankAi);
     })();
   </script>
-
 </head>
+
 <body>
 
+  <h1>Zornexus · STEP 3 → STEP 4 (Typhoon)</h1>
+
   <h2>STEP 3 YAML</h2>
-  <textarea id="input" placeholder="Paste STEP3 YAML here..."></textarea>
+  <textarea
+    id="input"
+    placeholder="วาง STEP 3 YAML ที่ได้จากระบบตรงนี้..."
+  ></textarea>
 
-  <button onclick="mockFinalize()">Finalize (mock)</button>
+  <button id="runBtn" onclick="runStep4()">Finalize → STEP 4</button>
 
-  <h2>STEP 4 YAML</h2>
-  <textarea id="output" placeholder="Result will appear here..."></textarea>
+  <div id="status" class="status"></div>
+
+  <h2>STEP 4 YAML (Final Script)</h2>
+  <textarea
+    id="output"
+    placeholder="ผลลัพธ์จาก Typhoon จะขึ้นที่นี่..."
+  ></textarea>
 
   <script>
-    function mockFinalize() {
-      const input = document.getElementById("input").value;
-      document.getElementById("output").value =
-`# STEP4 (mock)
-# Typhoon polish output will be here
+    // 🔧 เปลี่ยน URL นี้เป็น Production Webhook URL ของคุณ
+    const N8N_WEBHOOK_URL = "http://localhost:5678/webhook/zornexus/step4";
 
-${input}`;
+    async function runStep4() {
+      const inputEl = document.getElementById("input");
+      const outputEl = document.getElementById("output");
+      const statusEl = document.getElementById("status");
+      const button = document.getElementById("runBtn");
+
+      const step3Yaml = inputEl.value.trim();
+
+      if (!step3Yaml) {
+        statusEl.textContent = "⚠️ กรุณาวาง STEP 3 YAML ก่อน";
+        statusEl.className = "status error";
+        return;
+      }
+
+      statusEl.textContent = "⏳ กำลังส่งไป Typhoon...";
+      statusEl.className = "status";
+      outputEl.value = "";
+      button.disabled = true;
+
+      try {
+        const response = await fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            step3_yaml: step3Yaml
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const data = await response.json();
+
+        // รองรับได้หลาย shape
+        const step4Yaml =
+          data.step4_yaml ||
+          (data.data && data.data.step4_yaml) ||
+          "";
+
+        if (!step4Yaml) {
+          throw new Error("ไม่พบ step4_yaml ใน response");
+        }
+
+        outputEl.value = step4Yaml;
+        statusEl.textContent = "✅ สำเร็จ! ได้ STEP 4 Script แล้ว";
+        statusEl.className = "status";
+
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent =
+          "❌ เกิดข้อผิดพลาด: " + err.message;
+        statusEl.className = "status error";
+      } finally {
+        button.disabled = false;
+      }
     }
   </script>
 
