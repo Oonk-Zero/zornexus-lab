@@ -2,57 +2,209 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Zornexus STEP 3 → STEP 4 Lab</title>
 
   <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      padding: 24px;
-      max-width: 960px;
-      margin: auto;
-      background: #fafafa;
+    :root{
+      --bg0:#070A12;
+      --bg1:#0B1220;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.04);
+      --line: rgba(255,255,255,.10);
+      --text:#E8EEF8;
+      --muted: rgba(232,238,248,.70);
+
+      /* ✅ Accent สีปรับได้ (โทนในรูปแนว cyan/teal) */
+      --accent:#2DE2E6;
+      --accent2:#5B7CFF;
+
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --radius: 16px;
     }
 
-    h2 {
-      margin-top: 32px;
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 700px at 20% 15%, rgba(45,226,230,.18), transparent 60%),
+        radial-gradient(1000px 600px at 85% 20%, rgba(91,124,255,.14), transparent 55%),
+        radial-gradient(900px 600px at 50% 90%, rgba(255,255,255,.06), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      padding: 28px 16px 48px;
     }
 
-    textarea {
-      width: 100%;
-      min-height: 240px;
-      margin-bottom: 12px;
-      font-family: monospace;
+    .wrap{ max-width: 980px; margin: 0 auto; }
+
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; margin-bottom: 18px;
+    }
+
+    .brand{
+      display:flex; align-items:center; gap:12px;
+    }
+
+    .logo{
+      width:38px; height:38px; border-radius: 12px;
+      background:
+        radial-gradient(16px 16px at 30% 30%, rgba(255,255,255,.35), transparent 60%),
+        linear-gradient(135deg, rgba(45,226,230,.9), rgba(91,124,255,.85));
+      box-shadow: 0 10px 30px rgba(45,226,230,.18);
+    }
+
+    h1{
+      font-size: 22px; margin:0;
+      letter-spacing: .2px;
+    }
+    .sub{
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .panel{
+      margin-top: 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .panelHeader{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 16px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border-bottom: 1px solid var(--line);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .panelHeader h2{
+      margin:0;
       font-size: 14px;
-      padding: 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-      background: #fff;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      color: rgba(232,238,248,.85);
     }
 
-    button {
-      padding: 12px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      border-radius: 6px;
-      border: none;
-      background: #111;
-      color: #fff;
+    .controls{
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     }
 
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .status {
-      margin-top: 12px;
+    select, input[type="text"], input[type="number"]{
+      background: var(--card2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
       font-size: 14px;
-      color: #555;
+      outline: none;
     }
 
-    .error {
-      color: #c0392b;
+    select:focus, input:focus{
+      border-color: rgba(45,226,230,.55);
+      box-shadow: 0 0 0 3px rgba(45,226,230,.14);
+    }
+
+    textarea{
+      width:100%;
+      min-height: 260px;
+      background: rgba(0,0,0,.25);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      padding: 14px;
+      outline:none;
+      border-radius: 14px;
+      resize: vertical;
+    }
+    textarea:focus{
+      border-color: rgba(45,226,230,.55);
+      box-shadow: 0 0 0 3px rgba(45,226,230,.14);
+    }
+
+    .panelBody{ padding: 18px; display:grid; gap: 12px; }
+
+    .btnRow{
+      display:flex; gap: 10px; align-items:center; flex-wrap:wrap;
+    }
+
+    button{
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      cursor:pointer;
+      font-size: 14px;
+      color: #061018;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 12px 35px rgba(45,226,230,.20);
+      transition: transform .08s ease, filter .2s ease, opacity .2s ease;
+    }
+    button:hover{ filter: brightness(1.05); }
+    button:active{ transform: translateY(1px); }
+
+    button.secondary{
+      color: var(--text);
+      background: rgba(255,255,255,.08);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+
+    .status{
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .status.ok{ color: rgba(45,226,230,.95); }
+    .status.err{ color: #FF6B6B; }
+
+    details{
+      border: 1px dashed rgba(255,255,255,.18);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,.03);
+    }
+    summary{
+      cursor:pointer;
+      color: rgba(232,238,248,.80);
+      font-size: 13px;
+    }
+    .advGrid{
+      margin-top: 10px;
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (max-width: 860px){
+      .advGrid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .footerNote{
+      margin-top: 14px;
+      font-size: 12px;
+      color: rgba(232,238,248,.55);
+    }
+
+    /* ✅ Accent picker แบบง่าย */
+    .swatches{ display:flex; gap:8px; }
+    .swatch{
+      width: 22px; height: 22px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.18);
+      cursor:pointer;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.25);
     }
   </style>
 
@@ -70,89 +222,189 @@
 </head>
 
 <body>
+  <div class="wrap">
 
-  <h1>Zornexus · STEP 3 → STEP 4 (Typhoon)</h1>
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Zornexus · STEP 3 → STEP 4 (Typhoon)</h1>
+          <div class="sub">Paste STEP3 YAML → Finalize → Get STEP4 YAML (Final Script)</div>
+        </div>
+      </div>
 
-  <h2>STEP 3 YAML</h2>
-  <textarea
-    id="input"
-    placeholder="วาง STEP 3 YAML ที่ได้จากระบบตรงนี้..."
-  ></textarea>
+      <div class="controls">
+        <div class="swatches" title="Accent color">
+          <div class="swatch" style="background:#2DE2E6" onclick="setAccent('#2DE2E6','#5B7CFF')"></div>
+          <div class="swatch" style="background:#7C5CFF" onclick="setAccent('#7C5CFF','#2DE2E6')"></div>
+          <div class="swatch" style="background:#00E887" onclick="setAccent('#00E887','#2DE2E6')"></div>
+          <div class="swatch" style="background:#FF4FD8" onclick="setAccent('#FF4FD8','#7C5CFF')"></div>
+        </div>
+      </div>
+    </div>
 
-  <button id="runBtn" onclick="runStep4()">Finalize → STEP 4</button>
+    <!-- STEP 3 -->
+    <section class="panel">
+      <div class="panelHeader">
+        <h2>STEP 3 YAML</h2>
+        <div class="controls">
+          <!-- ✅ Persona selector: ส่งไป n8n -->
+          <select id="persona">
+            <option value="fay" selected>Persona: เฟย์ (FAY)</option>
+            <option value="neutral">Persona: Neutral</option>
+            <option value="energetic">Persona: Energetic</option>
+          </select>
 
-  <div id="status" class="status"></div>
+          <button class="secondary" onclick="fillExample()">ใส่ตัวอย่าง</button>
+          <button class="secondary" onclick="clearAll()">ล้าง</button>
+        </div>
+      </div>
 
-  <h2>STEP 4 YAML (Final Script)</h2>
-  <textarea
-    id="output"
-    placeholder="ผลลัพธ์จาก Typhoon จะขึ้นที่นี่..."
-  ></textarea>
+      <div class="panelBody">
+        <textarea id="input" placeholder="วาง STEP 3 YAML ที่ได้จากระบบตรงนี้..."></textarea>
+
+        <details>
+          <summary>Advanced (optional): override model / temperature / max_tokens</summary>
+          <div class="advGrid">
+            <input id="model" type="text" placeholder="typhoon model (optional)" />
+            <input id="temp" type="number" step="0.1" min="0" max="1.5" placeholder="temperature" />
+            <input id="maxTokens" type="number" step="50" min="200" max="4000" placeholder="max_tokens" />
+            <input id="reqId" type="text" placeholder="request_id (optional)" />
+          </div>
+          <div class="hint">
+            ถ้าไม่ใส่ ระบบจะใช้ค่า default ที่ n8n ตั้งไว้ (แนะนำแบบนี้ก่อน)  
+            Advanced เหมาะกับตอนคุณ optimize คุณภาพ/ราคา/ความยาว
+          </div>
+        </details>
+
+        <div class="btnRow">
+          <button id="runBtn" onclick="runStep4()">Finalize → STEP 4</button>
+          <div id="status" class="status"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="panel" style="margin-top:14px;">
+      <div class="panelHeader">
+        <h2>STEP 4 YAML (Final Script)</h2>
+        <div class="controls">
+          <button class="secondary" onclick="copyOut()">คัดลอก</button>
+        </div>
+      </div>
+      <div class="panelBody">
+        <textarea id="output" placeholder="ผลลัพธ์จาก Typhoon จะขึ้นที่นี่..."></textarea>
+        <div class="footerNote">
+          Tip: ถ้าเอาขึ้นใช้งานจริงบน Cloudflare Pages แล้วเรียก n8n ที่บ้าน/เครื่องคุณ จะต้องมี public URL (เช่น Cloudflare Tunnel) ไม่งั้นคนอื่นเรียกไม่ได้
+        </div>
+      </div>
+    </section>
+
+  </div>
 
   <script>
     // 🔧 เปลี่ยน URL นี้เป็น Production Webhook URL ของคุณ
     const N8N_WEBHOOK_URL = "http://localhost:5678/webhook/zornexus/step4";
 
+    function setAccent(a1, a2){
+      document.documentElement.style.setProperty('--accent', a1);
+      document.documentElement.style.setProperty('--accent2', a2);
+    }
+
+    function clearAll(){
+      document.getElementById("input").value = "";
+      document.getElementById("output").value = "";
+      setStatus("");
+    }
+
+    function fillExample(){
+      document.getElementById("input").value =
+`step3_script:
+  hook:
+    time_range: "0-3s"
+    line: "ทากันแดดแล้วหน้ามันเยิ้มระหว่างวันไหม?"
+  body_beats:
+    - time_range: "3-30s"
+      line: "ลองเลือกเนื้อบางเบา และทาบาง ๆ รอให้เซ็ตก่อนลงเมคอัพ"
+  close_cta:
+    time_range: "30-60s"
+    line: "ถ้าอยากได้ตัวที่เหมาะกับอากาศไทย เดี๋ยวแปะไว้ให้ดู"`;
+      setStatus("ใส่ตัวอย่างแล้ว ✅", "ok");
+    }
+
+    function setStatus(msg, type){
+      const el = document.getElementById("status");
+      el.textContent = msg || "";
+      el.className = "status" + (type ? (" " + type) : "");
+    }
+
+    async function copyOut(){
+      const out = document.getElementById("output").value;
+      if (!out.trim()) return setStatus("ยังไม่มีผลลัพธ์ให้คัดลอก", "err");
+      await navigator.clipboard.writeText(out);
+      setStatus("คัดลอกแล้ว ✅", "ok");
+    }
+
     async function runStep4() {
       const inputEl = document.getElementById("input");
       const outputEl = document.getElementById("output");
-      const statusEl = document.getElementById("status");
       const button = document.getElementById("runBtn");
 
       const step3Yaml = inputEl.value.trim();
+      const persona = document.getElementById("persona").value;
 
-      if (!step3Yaml) {
-        statusEl.textContent = "⚠️ กรุณาวาง STEP 3 YAML ก่อน";
-        statusEl.className = "status error";
-        return;
-      }
+      if (!step3Yaml) return setStatus("⚠️ กรุณาวาง STEP 3 YAML ก่อน", "err");
 
-      statusEl.textContent = "⏳ กำลังส่งไป Typhoon...";
-      statusEl.className = "status";
+      // optional overrides
+      const model = document.getElementById("model").value.trim();
+      const temp = document.getElementById("temp").value.trim();
+      const maxTokens = document.getElementById("maxTokens").value.trim();
+      const reqId = document.getElementById("reqId").value.trim();
+
+      setStatus("⏳ กำลังส่งไป Typhoon...", "");
       outputEl.value = "";
       button.disabled = true;
+
+      const payload = {
+        step3_yaml: step3Yaml,
+        persona, // ✅ ส่ง persona ไปให้ n8n เลือก preset
+      };
+
+      // ✅ ยืดหยุ่น: allow override (ถ้าไม่ใส่ ก็ไม่ส่ง)
+      if (model || temp || maxTokens) {
+        payload.typhoon = {};
+        if (model) payload.typhoon.model = model;
+        if (temp) payload.typhoon.temperature = Number(temp);
+        if (maxTokens) payload.typhoon.max_tokens = Number(maxTokens);
+      }
+      if (reqId) payload.request_id = reqId;
 
       try {
         const response = await fetch(N8N_WEBHOOK_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            step3_yaml: step3Yaml
-          })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
 
-        if (!response.ok) {
-          throw new Error("HTTP " + response.status);
-        }
+        if (!response.ok) throw new Error("HTTP " + response.status);
 
         const data = await response.json();
 
         // รองรับได้หลาย shape
-        const step4Yaml =
-          data.step4_yaml ||
-          (data.data && data.data.step4_yaml) ||
-          "";
+        const step4Yaml = data.step4_yaml || (data.data && data.data.step4_yaml) || "";
 
-        if (!step4Yaml) {
-          throw new Error("ไม่พบ step4_yaml ใน response");
-        }
+        if (!step4Yaml) throw new Error("ไม่พบ step4_yaml ใน response");
 
         outputEl.value = step4Yaml;
-        statusEl.textContent = "✅ สำเร็จ! ได้ STEP 4 Script แล้ว";
-        statusEl.className = "status";
+        setStatus("✅ สำเร็จ! ได้ STEP 4 Script แล้ว", "ok");
 
       } catch (err) {
         console.error(err);
-        statusEl.textContent =
-          "❌ เกิดข้อผิดพลาด: " + err.message;
-        statusEl.className = "status error";
+        setStatus("❌ เกิดข้อผิดพลาด: " + err.message, "err");
       } finally {
         button.disabled = false;
       }
     }
   </script>
-
 </body>
 </html>
