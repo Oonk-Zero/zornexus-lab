@@ -58,6 +58,18 @@
   /** Monotonic request id sequence for related-item fetches. */
   var relatedRequestSeq = 0;
 
+  /** In-memory cache of explain payload keyed by filename (session-only). */
+  var explainCache = {};
+
+  /** Per-filename explain UI state. */
+  var explainStateByFilename = {};
+
+  /** Tracks latest in-flight explain request id per filename. */
+  var explainRequestIdByFilename = {};
+
+  /** Monotonic request id sequence for explain fetches. */
+  var explainRequestSeq = 0;
+
   /* ------------------------------------------------------------------ */
   /*  Init                                                                */
   /* ------------------------------------------------------------------ */
@@ -220,6 +232,7 @@
     var pathTxt  = item.path     || "";
     var fullState = getFullContentState(filename);
     var relatedState = getRelatedState(filename);
+    var explainState = getExplainState(filename);
 
     // Summary: prefer summary, fall back to content_preview, then graceful note
     var bodyText = item.summary || item.content_preview || null;
@@ -271,6 +284,18 @@
             renderRelatedMarkup(relatedState) +
           '</div>' +
         '</div>' +
+        '<div class="preview-assist">' +
+          '<div class="preview-assist-head">' +
+            '<span class="preview-assist-label">Explain</span>' +
+            '<button class="btn btn--default btn--sm" id="preview-load-explain-btn"' +
+                    (explainState.status === "loading" ? " disabled" : "") + '>' +
+              'Load explain' +
+            '</button>' +
+          '</div>' +
+          '<div class="preview-explain-region" id="preview-explain-region">' +
+            renderExplainMarkup(explainState) +
+          '</div>' +
+        '</div>' +
       '</div>' +
 
       '<div class="preview-actions">' +
@@ -296,6 +321,13 @@
     if (loadRelatedBtn) {
       loadRelatedBtn.addEventListener("click", function () {
         loadRelated(filename);
+      });
+    }
+
+    var loadExplainBtn = document.getElementById("preview-load-explain-btn");
+    if (loadExplainBtn) {
+      loadExplainBtn.addEventListener("click", function () {
+        loadExplain(filename);
       });
     }
   }
@@ -485,6 +517,133 @@
 
   function buildRelatedErrorMessage(err) {
     var msg = "Failed to load related items";
+    if (err && err.status) msg += " (" + err.status + ")";
+    return msg + ".";
+  }
+
+  function getExplainState(filename) {
+    if (Object.prototype.hasOwnProperty.call(explainCache, filename)) {
+      return { status: "loaded", data: explainCache[filename] };
+    }
+    return explainStateByFilename[filename] || { status: "idle" };
+  }
+
+  function renderExplainMarkup(state) {
+    if (!state || state.status === "idle") {
+      return '<div class="preview-inline-note">Explain output is not loaded yet.</div>';
+    }
+    if (state.status === "loading") {
+      return '<div class="preview-inline-status">Loading explanation&hellip;</div>';
+    }
+    if (state.status === "error") {
+      return '<div class="preview-inline-error">' +
+               window.escHtml(state.message || "Failed to load explanation.") +
+             '</div>';
+    }
+
+    var data = state.data || {};
+    var purpose = data.purpose || "—";
+    var whyInPending = data.why_in_pending || "—";
+    var keyPoints = Array.isArray(data.key_points) ? data.key_points : [];
+    var reread = Array.isArray(data.reread_candidates) ? data.reread_candidates : [];
+    var cautions = Array.isArray(data.cautions) ? data.cautions : [];
+
+    return (
+      '<div class="explain-section">' +
+        '<div class="explain-section-title">Purpose</div>' +
+        '<p class="explain-paragraph">' + window.escHtml(purpose) + '</p>' +
+      '</div>' +
+      '<div class="explain-section">' +
+        '<div class="explain-section-title">Why in pending</div>' +
+        '<p class="explain-paragraph">' + window.escHtml(whyInPending) + '</p>' +
+      '</div>' +
+      '<div class="explain-section">' +
+        '<div class="explain-section-title">Key points</div>' +
+        renderExplainList(keyPoints, "No extracted key points.") +
+      '</div>' +
+      '<div class="explain-section">' +
+        '<div class="explain-section-title">Reread</div>' +
+        renderRereadList(reread) +
+      '</div>' +
+      '<div class="explain-section">' +
+        '<div class="explain-section-title">Cautions</div>' +
+        renderExplainList(cautions, "No explicit structural cautions.") +
+      '</div>'
+    );
+  }
+
+  function renderExplainList(items, emptyLabel) {
+    if (!items.length) {
+      return '<div class="explain-empty-note">' + window.escHtml(emptyLabel) + '</div>';
+    }
+    return '<ul class="explain-bullet-list">' +
+      items.map(function (entry) {
+        return '<li>' + window.escHtml(entry) + '</li>';
+      }).join("") +
+    '</ul>';
+  }
+
+  function renderRereadList(items) {
+    if (!items.length) {
+      return '<div class="explain-empty-note">No explicit reread candidates.</div>';
+    }
+    return '<ul class="explain-bullet-list explain-bullet-list--mono">' +
+      items.map(function (entry) {
+        return '<li>' + window.escHtml(entry) + '</li>';
+      }).join("") +
+    '</ul>';
+  }
+
+  function loadExplain(filename) {
+    if (!filename) return;
+
+    var existingState = getExplainState(filename);
+    if (existingState.status === "loaded") {
+      renderExplainForCurrentSelection(filename);
+      return;
+    }
+
+    var requestId = ++explainRequestSeq;
+    explainRequestIdByFilename[filename] = requestId;
+    explainStateByFilename[filename] = { status: "loading" };
+    renderExplainForCurrentSelection(filename);
+
+    API.getPendingExplain(filename)
+      .then(function (data) {
+        if (explainRequestIdByFilename[filename] !== requestId) return;
+
+        explainCache[filename] = data || {};
+        explainStateByFilename[filename] = { status: "loaded", data: data || {} };
+        renderExplainForCurrentSelection(filename);
+      })
+      .catch(function (err) {
+        if (explainRequestIdByFilename[filename] !== requestId) return;
+
+        explainStateByFilename[filename] = {
+          status: "error",
+          message: buildExplainErrorMessage(err)
+        };
+        renderExplainForCurrentSelection(filename);
+      });
+  }
+
+  function renderExplainForCurrentSelection(filename) {
+    if (!selectedItem || selectedItem.filename !== filename) return;
+
+    var state = getExplainState(filename);
+    var region = document.getElementById("preview-explain-region");
+    if (region) {
+      region.innerHTML = renderExplainMarkup(state);
+    }
+
+    var loadBtn = document.getElementById("preview-load-explain-btn");
+    if (loadBtn) {
+      loadBtn.disabled = state.status === "loading";
+    }
+  }
+
+  function buildExplainErrorMessage(err) {
+    var msg = "Failed to load explanation";
     if (err && err.status) msg += " (" + err.status + ")";
     return msg + ".";
   }
