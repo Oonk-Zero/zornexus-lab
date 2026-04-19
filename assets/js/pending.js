@@ -58,6 +58,18 @@
   /** Monotonic request id sequence for related-item fetches. */
   var relatedRequestSeq = 0;
 
+  /** In-memory cache of overlap items keyed by filename (session-only). */
+  var overlapCache = {};
+
+  /** Per-filename overlap UI state. */
+  var overlapStateByFilename = {};
+
+  /** Tracks latest in-flight overlap request id per filename. */
+  var overlapRequestIdByFilename = {};
+
+  /** Monotonic request id sequence for overlap fetches. */
+  var overlapRequestSeq = 0;
+
   /** In-memory cache of explain payload keyed by filename (session-only). */
   var explainCache = {};
 
@@ -232,6 +244,7 @@
     var pathTxt  = item.path     || "";
     var fullState = getFullContentState(filename);
     var relatedState = getRelatedState(filename);
+    var overlapState = getOverlapState(filename);
     var explainState = getExplainState(filename);
 
     // Summary: prefer summary, fall back to content_preview, then graceful note
@@ -286,6 +299,18 @@
         '</div>' +
         '<div class="preview-assist">' +
           '<div class="preview-assist-head">' +
+            '<span class="preview-assist-label">Overlap hints</span>' +
+            '<button class="btn btn--default btn--sm" id="preview-load-overlap-btn"' +
+                    (overlapState.status === "loading" ? " disabled" : "") + '>' +
+              'Load overlap hints' +
+            '</button>' +
+          '</div>' +
+          '<div class="preview-overlap-region" id="preview-overlap-region">' +
+            renderOverlapMarkup(overlapState) +
+          '</div>' +
+        '</div>' +
+        '<div class="preview-assist">' +
+          '<div class="preview-assist-head">' +
             '<span class="preview-assist-label">Explain</span>' +
             '<button class="btn btn--default btn--sm" id="preview-load-explain-btn"' +
                     (explainState.status === "loading" ? " disabled" : "") + '>' +
@@ -321,6 +346,13 @@
     if (loadRelatedBtn) {
       loadRelatedBtn.addEventListener("click", function () {
         loadRelated(filename);
+      });
+    }
+
+    var loadOverlapBtn = document.getElementById("preview-load-overlap-btn");
+    if (loadOverlapBtn) {
+      loadOverlapBtn.addEventListener("click", function () {
+        loadOverlap(filename);
       });
     }
 
@@ -517,6 +549,113 @@
 
   function buildRelatedErrorMessage(err) {
     var msg = "Failed to load related items";
+    if (err && err.status) msg += " (" + err.status + ")";
+    return msg + ".";
+  }
+
+  function getOverlapState(filename) {
+    if (Object.prototype.hasOwnProperty.call(overlapCache, filename)) {
+      return { status: "loaded", items: overlapCache[filename] };
+    }
+    return overlapStateByFilename[filename] || { status: "idle" };
+  }
+
+  function renderOverlapMarkup(state) {
+    if (!state || state.status === "idle") {
+      return '<div class="preview-inline-note">Overlap hints are not loaded yet.</div>';
+    }
+    if (state.status === "loading") {
+      return '<div class="preview-inline-status">Loading overlap hints&hellip;</div>';
+    }
+    if (state.status === "error") {
+      return '<div class="preview-inline-error">' +
+               window.escHtml(state.message || "Failed to load overlap hints.") +
+             '</div>';
+    }
+
+    var items = Array.isArray(state.items) ? state.items : [];
+    if (!items.length) {
+      return '<div class="preview-inline-note">No overlap signals detected in the pending queue.</div>';
+    }
+
+    return items.map(function (entry) {
+      var title = entry.title || entry.filename || "Untitled";
+      var filename = entry.filename || "";
+      var typeTxt = entry.type || "unknown";
+      var summary = entry.summary || "";
+      var modifiedTxt = entry.modified_at ? window.formatDateTime(entry.modified_at) : "—";
+      var reasons = Array.isArray(entry.overlap_reasons) ? entry.overlap_reasons : [];
+      var reasonsText = reasons.join(", ");
+
+      return (
+        '<div class="overlap-item">' +
+          '<div class="overlap-item-head">' +
+            '<span class="overlap-item-title">' + window.escHtml(title) + '</span>' +
+            '<span class="overlap-item-type">' + window.escHtml(String(typeTxt).toUpperCase()) + '</span>' +
+          '</div>' +
+          '<div class="overlap-item-meta">' +
+            window.escHtml(filename) + ' &middot; ' + window.escHtml(modifiedTxt) +
+          '</div>' +
+          '<p class="overlap-item-summary">' + window.escHtml(summary) + '</p>' +
+          (reasonsText
+            ? '<div class="overlap-item-reasons">' + window.escHtml(reasonsText) + '</div>'
+            : '') +
+        '</div>'
+      );
+    }).join("");
+  }
+
+  function loadOverlap(filename) {
+    if (!filename) return;
+
+    var existingState = getOverlapState(filename);
+    if (existingState.status === "loaded") {
+      renderOverlapForCurrentSelection(filename);
+      return;
+    }
+
+    var requestId = ++overlapRequestSeq;
+    overlapRequestIdByFilename[filename] = requestId;
+    overlapStateByFilename[filename] = { status: "loading" };
+    renderOverlapForCurrentSelection(filename);
+
+    API.getPendingOverlap(filename, 5)
+      .then(function (data) {
+        if (overlapRequestIdByFilename[filename] !== requestId) return;
+
+        var items = (data && Array.isArray(data.items)) ? data.items : [];
+        overlapCache[filename] = items;
+        overlapStateByFilename[filename] = { status: "loaded", items: items };
+        renderOverlapForCurrentSelection(filename);
+      })
+      .catch(function (err) {
+        if (overlapRequestIdByFilename[filename] !== requestId) return;
+
+        overlapStateByFilename[filename] = {
+          status: "error",
+          message: buildOverlapErrorMessage(err)
+        };
+        renderOverlapForCurrentSelection(filename);
+      });
+  }
+
+  function renderOverlapForCurrentSelection(filename) {
+    if (!selectedItem || selectedItem.filename !== filename) return;
+
+    var state = getOverlapState(filename);
+    var region = document.getElementById("preview-overlap-region");
+    if (region) {
+      region.innerHTML = renderOverlapMarkup(state);
+    }
+
+    var loadBtn = document.getElementById("preview-load-overlap-btn");
+    if (loadBtn) {
+      loadBtn.disabled = state.status === "loading";
+    }
+  }
+
+  function buildOverlapErrorMessage(err) {
+    var msg = "Failed to load overlap hints";
     if (err && err.status) msg += " (" + err.status + ")";
     return msg + ".";
   }
