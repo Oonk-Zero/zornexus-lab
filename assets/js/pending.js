@@ -34,6 +34,18 @@
   /** Set of checked filenames: { "filename.md": true } */
   var selectedFilenames = {};
 
+  /** In-memory cache of full content keyed by filename (session-only). */
+  var fullContentCache = {};
+
+  /** Per-filename full-content UI state. */
+  var fullContentStateByFilename = {};
+
+  /** Tracks latest in-flight full-content request id per filename. */
+  var openFullRequestIdByFilename = {};
+
+  /** Monotonic request id sequence for full-content fetches. */
+  var openFullRequestSeq = 0;
+
   /* ------------------------------------------------------------------ */
   /*  Init                                                                */
   /* ------------------------------------------------------------------ */
@@ -194,6 +206,7 @@
     var typeTxt  = item.type     ? item.type : "unknown";
     var timeTxt  = item.modified_at ? window.formatDateTime(item.modified_at) : "—";
     var pathTxt  = item.path     || "";
+    var fullState = getFullContentState(filename);
 
     // Summary: prefer summary, fall back to content_preview, then graceful note
     var bodyText = item.summary || item.content_preview || null;
@@ -221,6 +234,18 @@
         (pathTxt
           ? '<div class="preview-api-note">' + window.escHtml(pathTxt) + '</div>'
           : '') +
+        '<div class="preview-assist">' +
+          '<div class="preview-assist-head">' +
+            '<span class="preview-assist-label">Full content</span>' +
+            '<button class="btn btn--default btn--sm" id="preview-open-full-btn"' +
+                    (fullState.status === "loading" ? " disabled" : "") + '>' +
+              'Open full' +
+            '</button>' +
+          '</div>' +
+          '<div class="preview-full-region" id="preview-full-content-region">' +
+            renderFullContentMarkup(fullState) +
+          '</div>' +
+        '</div>' +
       '</div>' +
 
       '<div class="preview-actions">' +
@@ -234,11 +259,101 @@
     document.getElementById("preview-reject-btn").addEventListener("click", function () {
       runSingleAction("reject", filename);
     });
+
+    var openFullBtn = document.getElementById("preview-open-full-btn");
+    if (openFullBtn) {
+      openFullBtn.addEventListener("click", function () {
+        openFullContent(filename);
+      });
+    }
+  }
+
+  function getFullContentState(filename) {
+    if (Object.prototype.hasOwnProperty.call(fullContentCache, filename)) {
+      return { status: "loaded", content: fullContentCache[filename] };
+    }
+    return fullContentStateByFilename[filename] || { status: "idle" };
+  }
+
+  function renderFullContentMarkup(state) {
+    if (!state || state.status === "idle") {
+      return '<div class="preview-inline-note">Full content is not loaded yet.</div>';
+    }
+    if (state.status === "loading") {
+      return '<div class="preview-inline-status">Loading full content&hellip;</div>';
+    }
+    if (state.status === "error") {
+      return '<div class="preview-inline-error">' +
+               window.escHtml(state.message || "Failed to load full content.") +
+             '</div>';
+    }
+
+    var content = state.content || "";
+    if (!content.trim()) {
+      return '<div class="preview-inline-note">This item has no full content.</div>';
+    }
+    return '<pre class="preview-full-content">' + window.escHtml(content) + '</pre>';
+  }
+
+  function openFullContent(filename) {
+    if (!filename) return;
+
+    var existingState = getFullContentState(filename);
+    if (existingState.status === "loaded") {
+      renderFullContentForCurrentSelection(filename);
+      return;
+    }
+
+    var requestId = ++openFullRequestSeq;
+    openFullRequestIdByFilename[filename] = requestId;
+    fullContentStateByFilename[filename] = { status: "loading" };
+    renderFullContentForCurrentSelection(filename);
+
+    API.getPendingItem(filename)
+      .then(function (item) {
+        if (openFullRequestIdByFilename[filename] !== requestId) return;
+
+        var content = (item && typeof item.content === "string") ? item.content : "";
+        fullContentCache[filename] = content;
+        fullContentStateByFilename[filename] = { status: "loaded", content: content };
+        renderFullContentForCurrentSelection(filename);
+      })
+      .catch(function (err) {
+        if (openFullRequestIdByFilename[filename] !== requestId) return;
+
+        fullContentStateByFilename[filename] = {
+          status: "error",
+          message: buildOpenFullErrorMessage(err)
+        };
+        renderFullContentForCurrentSelection(filename);
+      });
+  }
+
+  function renderFullContentForCurrentSelection(filename) {
+    if (!selectedItem || selectedItem.filename !== filename) return;
+
+    var state = getFullContentState(filename);
+    var region = document.getElementById("preview-full-content-region");
+    if (region) {
+      region.innerHTML = renderFullContentMarkup(state);
+    }
+
+    var openFullBtn = document.getElementById("preview-open-full-btn");
+    if (openFullBtn) {
+      openFullBtn.disabled = state.status === "loading";
+    }
+  }
+
+  function buildOpenFullErrorMessage(err) {
+    var msg = "Failed to load full content";
+    if (err && err.status) msg += " (" + err.status + ")";
+    return msg + ".";
   }
 
   function clearPreview() {
     var panel = document.getElementById("item-preview");
     if (!panel) return;
+    selectedItem = null;
     panel.innerHTML =
       '<div class="preview-empty">' +
         '<span class="preview-empty-icon" aria-hidden="true">&#9744;</span>' +
