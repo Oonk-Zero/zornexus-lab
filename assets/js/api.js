@@ -186,6 +186,30 @@ const API = (() => {
   }
 
   /**
+   * Retrieve deterministic explanation for one pending item.
+   * GET /api/pending/explain?filename=<filename>
+   *
+   * Response:
+   * {
+   *   "filename": "...",
+   *   "title": "...",
+   *   "artifact_type": "...",
+   *   "purpose": "...",
+   *   "why_in_pending": "...",
+   *   "key_points": [],
+   *   "reread_candidates": [],
+   *   "cautions": []
+   * }
+   *
+   * @param {string} filename
+   * @returns {Promise<object>}
+   */
+  function getPendingExplain(filename) {
+    var url = endpoint("pendingExplain") + "?filename=" + encodeURIComponent(filename);
+    return request(url);
+  }
+
+  /**
    * Approve a single pending item by filename.
    * POST /api/pending/approve
    *
@@ -251,6 +275,7 @@ const API = (() => {
     getPendingList,
     getPendingItem,
     getPendingRelated,
+    getPendingExplain,
     approvePending,
     rejectPending,
     batchApprove,
