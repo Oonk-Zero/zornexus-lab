@@ -1070,6 +1070,23 @@
     line-height: 1.6;
   }
 
+  .explain-type-value {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+
+  .explain-signals-title {
+    margin-top: 8px;
+    margin-bottom: 4px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+
   .explain-bullet-list {
     margin: 0;
     padding-left: 18px;
@@ -1088,6 +1105,12 @@
   }
 
   .explain-bullet-list--mono li {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    word-break: break-all;
+  }
+
+  .explain-type-signals li {
     font-family: var(--font-mono);
     font-size: 11px;
     word-break: break-all;
