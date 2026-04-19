@@ -44,6 +44,7 @@ window.ZORNOX_CONFIG = {
     /* Pending review workflow */
     pendingList:    "/api/pending/list",         // GET   ?limit=N&search=...  returns { items, total }
     pendingItem:    "/api/pending/item",         // GET   ?filename=...        returns full item detail
+    pendingRelated: "/api/pending/related",      // GET   ?filename=...&limit=5 returns queue-scoped related items
     pendingApprove: "/api/pending/approve",      // POST  { "filename": "..." }
     pendingReject:  "/api/pending/reject",       // POST  { "filename": "..." }
     pendingBatch:   "/api/pending/batch"         // POST  { "action": "approve"|"reject", "filenames": [...] }
