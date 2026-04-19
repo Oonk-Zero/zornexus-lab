@@ -46,6 +46,18 @@
   /** Monotonic request id sequence for full-content fetches. */
   var openFullRequestSeq = 0;
 
+  /** In-memory cache of related items keyed by filename (session-only). */
+  var relatedCache = {};
+
+  /** Per-filename related-items UI state. */
+  var relatedStateByFilename = {};
+
+  /** Tracks latest in-flight related request id per filename. */
+  var relatedRequestIdByFilename = {};
+
+  /** Monotonic request id sequence for related-item fetches. */
+  var relatedRequestSeq = 0;
+
   /* ------------------------------------------------------------------ */
   /*  Init                                                                */
   /* ------------------------------------------------------------------ */
@@ -207,6 +219,7 @@
     var timeTxt  = item.modified_at ? window.formatDateTime(item.modified_at) : "—";
     var pathTxt  = item.path     || "";
     var fullState = getFullContentState(filename);
+    var relatedState = getRelatedState(filename);
 
     // Summary: prefer summary, fall back to content_preview, then graceful note
     var bodyText = item.summary || item.content_preview || null;
@@ -246,6 +259,18 @@
             renderFullContentMarkup(fullState) +
           '</div>' +
         '</div>' +
+        '<div class="preview-assist">' +
+          '<div class="preview-assist-head">' +
+            '<span class="preview-assist-label">Related</span>' +
+            '<button class="btn btn--default btn--sm" id="preview-load-related-btn"' +
+                    (relatedState.status === "loading" ? " disabled" : "") + '>' +
+              'Load related' +
+            '</button>' +
+          '</div>' +
+          '<div class="preview-related-region" id="preview-related-region">' +
+            renderRelatedMarkup(relatedState) +
+          '</div>' +
+        '</div>' +
       '</div>' +
 
       '<div class="preview-actions">' +
@@ -264,6 +289,13 @@
     if (openFullBtn) {
       openFullBtn.addEventListener("click", function () {
         openFullContent(filename);
+      });
+    }
+
+    var loadRelatedBtn = document.getElementById("preview-load-related-btn");
+    if (loadRelatedBtn) {
+      loadRelatedBtn.addEventListener("click", function () {
+        loadRelated(filename);
       });
     }
   }
@@ -346,6 +378,113 @@
 
   function buildOpenFullErrorMessage(err) {
     var msg = "Failed to load full content";
+    if (err && err.status) msg += " (" + err.status + ")";
+    return msg + ".";
+  }
+
+  function getRelatedState(filename) {
+    if (Object.prototype.hasOwnProperty.call(relatedCache, filename)) {
+      return { status: "loaded", items: relatedCache[filename] };
+    }
+    return relatedStateByFilename[filename] || { status: "idle" };
+  }
+
+  function renderRelatedMarkup(state) {
+    if (!state || state.status === "idle") {
+      return '<div class="preview-inline-note">Related items are not loaded yet.</div>';
+    }
+    if (state.status === "loading") {
+      return '<div class="preview-inline-status">Loading related items&hellip;</div>';
+    }
+    if (state.status === "error") {
+      return '<div class="preview-inline-error">' +
+               window.escHtml(state.message || "Failed to load related items.") +
+             '</div>';
+    }
+
+    var items = Array.isArray(state.items) ? state.items : [];
+    if (!items.length) {
+      return '<div class="preview-inline-note">No related pending items found in the queue.</div>';
+    }
+
+    return items.map(function (entry) {
+      var title = entry.title || entry.filename || "Untitled";
+      var filename = entry.filename || "";
+      var typeTxt = entry.type || "unknown";
+      var summary = entry.summary || "";
+      var modifiedTxt = entry.modified_at ? window.formatDateTime(entry.modified_at) : "—";
+      var reasons = Array.isArray(entry.match_reasons) ? entry.match_reasons : [];
+      var reasonsText = reasons.join(", ");
+
+      return (
+        '<div class="related-item">' +
+          '<div class="related-item-head">' +
+            '<span class="related-item-title">' + window.escHtml(title) + '</span>' +
+            '<span class="related-item-type">' + window.escHtml(String(typeTxt).toUpperCase()) + '</span>' +
+          '</div>' +
+          '<div class="related-item-meta">' +
+            window.escHtml(filename) + ' &middot; ' + window.escHtml(modifiedTxt) +
+          '</div>' +
+          '<p class="related-item-summary">' + window.escHtml(summary) + '</p>' +
+          (reasonsText
+            ? '<div class="related-item-reasons">' + window.escHtml(reasonsText) + '</div>'
+            : '') +
+        '</div>'
+      );
+    }).join("");
+  }
+
+  function loadRelated(filename) {
+    if (!filename) return;
+
+    var existingState = getRelatedState(filename);
+    if (existingState.status === "loaded") {
+      renderRelatedForCurrentSelection(filename);
+      return;
+    }
+
+    var requestId = ++relatedRequestSeq;
+    relatedRequestIdByFilename[filename] = requestId;
+    relatedStateByFilename[filename] = { status: "loading" };
+    renderRelatedForCurrentSelection(filename);
+
+    API.getPendingRelated(filename, 5)
+      .then(function (data) {
+        if (relatedRequestIdByFilename[filename] !== requestId) return;
+
+        var items = (data && Array.isArray(data.items)) ? data.items : [];
+        relatedCache[filename] = items;
+        relatedStateByFilename[filename] = { status: "loaded", items: items };
+        renderRelatedForCurrentSelection(filename);
+      })
+      .catch(function (err) {
+        if (relatedRequestIdByFilename[filename] !== requestId) return;
+
+        relatedStateByFilename[filename] = {
+          status: "error",
+          message: buildRelatedErrorMessage(err)
+        };
+        renderRelatedForCurrentSelection(filename);
+      });
+  }
+
+  function renderRelatedForCurrentSelection(filename) {
+    if (!selectedItem || selectedItem.filename !== filename) return;
+
+    var state = getRelatedState(filename);
+    var region = document.getElementById("preview-related-region");
+    if (region) {
+      region.innerHTML = renderRelatedMarkup(state);
+    }
+
+    var loadBtn = document.getElementById("preview-load-related-btn");
+    if (loadBtn) {
+      loadBtn.disabled = state.status === "loading";
+    }
+  }
+
+  function buildRelatedErrorMessage(err) {
+    var msg = "Failed to load related items";
     if (err && err.status) msg += " (" + err.status + ")";
     return msg + ".";
   }
