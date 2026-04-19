@@ -681,6 +681,8 @@
     }
 
     var data = state.data || {};
+    var artifactType = data.artifact_type || "unknown";
+    var typeSignals = Array.isArray(data.type_signals) ? data.type_signals : [];
     var purpose = data.purpose || "—";
     var whyInPending = data.why_in_pending || "—";
     var keyPoints = Array.isArray(data.key_points) ? data.key_points : [];
@@ -688,6 +690,20 @@
     var cautions = Array.isArray(data.cautions) ? data.cautions : [];
 
     return (
+      '<div class="explain-section">' +
+        '<div class="explain-section-title">Artifact type</div>' +
+        '<p class="explain-paragraph"><span class="explain-type-value">' +
+          window.escHtml(String(artifactType).toUpperCase()) +
+        '</span></p>' +
+        (typeSignals.length
+          ? '<div class="explain-signals-title">Type signals</div>' +
+            '<ul class="explain-bullet-list explain-type-signals">' +
+              typeSignals.map(function (entry) {
+                return '<li>' + window.escHtml(entry) + '</li>';
+              }).join("") +
+            '</ul>'
+          : '') +
+      '</div>' +
       '<div class="explain-section">' +
         '<div class="explain-section-title">Purpose</div>' +
         '<p class="explain-paragraph">' + window.escHtml(purpose) + '</p>' +
