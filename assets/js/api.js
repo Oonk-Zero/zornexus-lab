@@ -162,6 +162,30 @@ const API = (() => {
   }
 
   /**
+   * Retrieve queue-scoped related pending items for one filename.
+   * GET /api/pending/related?filename=<filename>&limit=5
+   *
+   * Response:
+   * {
+   *   "filename": "...",
+   *   "items": [
+   *     { "filename", "title", "type", "summary", "modified_at", "match_reasons": [] }
+   *   ]
+   * }
+   *
+   * @param {string} filename
+   * @param {number} [limit]
+   * @returns {Promise<object>}
+   */
+  function getPendingRelated(filename, limit) {
+    var url = endpoint("pendingRelated") + "?filename=" + encodeURIComponent(filename);
+    if (limit != null) {
+      url += "&limit=" + encodeURIComponent(limit);
+    }
+    return request(url);
+  }
+
+  /**
    * Approve a single pending item by filename.
    * POST /api/pending/approve
    *
@@ -226,6 +250,7 @@ const API = (() => {
     getUploadList,
     getPendingList,
     getPendingItem,
+    getPendingRelated,
     approvePending,
     rejectPending,
     batchApprove,
