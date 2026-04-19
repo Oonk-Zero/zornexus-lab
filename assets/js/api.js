@@ -186,6 +186,30 @@ const API = (() => {
   }
 
   /**
+   * Retrieve queue-scoped overlap hints for one pending item.
+   * GET /api/pending/overlap?filename=<filename>&limit=5
+   *
+   * Response:
+   * {
+   *   "filename": "...",
+   *   "items": [
+   *     { "filename", "title", "type", "summary", "modified_at", "overlap_reasons": [] }
+   *   ]
+   * }
+   *
+   * @param {string} filename
+   * @param {number} [limit]
+   * @returns {Promise<object>}
+   */
+  function getPendingOverlap(filename, limit) {
+    var url = endpoint("pendingOverlap") + "?filename=" + encodeURIComponent(filename);
+    if (limit != null) {
+      url += "&limit=" + encodeURIComponent(limit);
+    }
+    return request(url);
+  }
+
+  /**
    * Retrieve deterministic explanation for one pending item.
    * GET /api/pending/explain?filename=<filename>
    *
@@ -275,6 +299,7 @@ const API = (() => {
     getPendingList,
     getPendingItem,
     getPendingRelated,
+    getPendingOverlap,
     getPendingExplain,
     approvePending,
     rejectPending,
