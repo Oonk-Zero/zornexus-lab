@@ -82,6 +82,18 @@
   /** Monotonic request id sequence for explain fetches. */
   var explainRequestSeq = 0;
 
+  /** In-memory cache of pending item detail keyed by filename (session-only). */
+  var detailCache = {};
+
+  /** Per-filename detail UI state. */
+  var detailStateByFilename = {};
+
+  /** Tracks latest in-flight detail request id per filename. */
+  var detailRequestIdByFilename = {};
+
+  /** Monotonic request id sequence for detail fetches. */
+  var detailRequestSeq = 0;
+
   /* ------------------------------------------------------------------ */
   /*  Init                                                                */
   /* ------------------------------------------------------------------ */
@@ -224,13 +236,14 @@
   /* ------------------------------------------------------------------ */
 
   function selectItem(item) {
-    selectedItem = item;
+    selectedItem = Object.assign({}, item);
 
     document.querySelectorAll(".pending-item").forEach(function (el) {
-      el.classList.toggle("pending-item--selected", el.dataset.filename === item.filename);
+      el.classList.toggle("pending-item--selected", el.dataset.filename === selectedItem.filename);
     });
 
-    renderPreview(item);
+    renderPreview(selectedItem);
+    ensurePendingDetailLoaded(selectedItem.filename);
   }
 
   function renderPreview(item) {
@@ -246,6 +259,8 @@
     var relatedState = getRelatedState(filename);
     var overlapState = getOverlapState(filename);
     var explainState = getExplainState(filename);
+    var detailState = getDetailState(filename);
+    var qualityGate = (item && item.quality_gate) || (detailState.item && detailState.item.quality_gate) || null;
 
     // Summary: prefer summary, fall back to content_preview, then graceful note
     var bodyText = item.summary || item.content_preview || null;
@@ -273,6 +288,14 @@
         (pathTxt
           ? '<div class="preview-api-note">' + window.escHtml(pathTxt) + '</div>'
           : '') +
+        '<div class="preview-assist">' +
+          '<div class="preview-assist-head">' +
+            '<span class="preview-assist-label">QUALITY GATE</span>' +
+          '</div>' +
+          '<div class="preview-quality-region" id="preview-quality-gate-region">' +
+            renderQualityGateMarkup(detailState, qualityGate) +
+          '</div>' +
+        '</div>' +
         '<div class="preview-assist">' +
           '<div class="preview-assist-head">' +
             '<span class="preview-assist-label">Full content</span>' +
@@ -371,6 +394,113 @@
     return fullContentStateByFilename[filename] || { status: "idle" };
   }
 
+  function getDetailState(filename) {
+    if (Object.prototype.hasOwnProperty.call(detailCache, filename)) {
+      return { status: "loaded", item: detailCache[filename] };
+    }
+    return detailStateByFilename[filename] || { status: "idle", item: null };
+  }
+
+  function renderQualityGateMarkup(detailState, qualityGate) {
+    if (qualityGate) {
+      var status = String(qualityGate.status || "unavailable").toLowerCase();
+      var recommended = qualityGate.recommended_action || "review";
+      var summary = qualityGate.summary || {};
+      var findings = Array.isArray(qualityGate.top_findings) ? qualityGate.top_findings : [];
+
+      return (
+        '<div class="quality-gate-card">' +
+          '<div class="quality-gate-header">' +
+            '<span class="quality-gate-badge quality-gate-badge--' + window.escHtml(status) + '">' +
+              window.escHtml(status.toUpperCase()) +
+            '</span>' +
+            '<span class="quality-gate-action">Recommended: ' + window.escHtml(String(recommended).toUpperCase()) + '</span>' +
+          '</div>' +
+          '<div class="quality-gate-summary">' +
+            'Hard blocks: ' + window.escHtml(String(summary.hard_block_count || 0)) +
+            ' &middot; Warnings: ' + window.escHtml(String(summary.warning_count || 0)) +
+            ' &middot; Advisories: ' + window.escHtml(String(summary.advisory_count || 0)) +
+          '</div>' +
+          (findings.length
+            ? '<ul class="quality-gate-list">' +
+                findings.slice(0, 3).map(function (entry) {
+                  var findingStatus = String(entry.severity || "advisory").toUpperCase();
+                  var findingAction = entry.recommended_action ? ' &middot; ' + window.escHtml(entry.recommended_action) : '';
+                  return '<li>' +
+                    '<span class="quality-gate-finding-id">' + window.escHtml(entry.id || "quality_gate_finding") + '</span>' +
+                    '<span class="quality-gate-finding-severity">' + window.escHtml(findingStatus) + '</span>' +
+                    '<div class="quality-gate-finding-message">' + window.escHtml(entry.message || "Quality gate finding.") + findingAction + '</div>' +
+                  '</li>';
+                }).join("") +
+              '</ul>'
+            : '<div class="preview-inline-note">No quality findings.</div>') +
+        '</div>'
+      );
+    }
+
+    if (detailState && detailState.status === "loading") {
+      return '<div class="preview-inline-status">Loading quality gate&hellip;</div>';
+    }
+
+    if (detailState && detailState.status === "error") {
+      return '<div class="preview-inline-error">' +
+               window.escHtml(detailState.message || "Failed to load quality gate.") +
+             '</div>';
+    }
+
+    return '<div class="preview-inline-note">Quality gate is not loaded yet.</div>';
+  }
+
+  function ensurePendingDetailLoaded(filename) {
+    if (!filename) return;
+
+    var existingState = getDetailState(filename);
+    if (existingState.status === "loaded") {
+      if (selectedItem && selectedItem.filename === filename) {
+        selectedItem = Object.assign({}, selectedItem, existingState.item || {});
+        renderPreview(selectedItem);
+      }
+      return;
+    }
+
+    if (existingState.status === "loading") {
+      return;
+    }
+
+    var requestId = ++detailRequestSeq;
+    detailRequestIdByFilename[filename] = requestId;
+    detailStateByFilename[filename] = { status: "loading", item: null };
+    if (selectedItem && selectedItem.filename === filename) {
+      renderPreview(selectedItem);
+    }
+
+    API.getPendingItem(filename)
+      .then(function (item) {
+        if (detailRequestIdByFilename[filename] !== requestId) return;
+
+        detailCache[filename] = item || {};
+        detailStateByFilename[filename] = { status: "loaded", item: item || {} };
+
+        if (selectedItem && selectedItem.filename === filename) {
+          selectedItem = Object.assign({}, selectedItem, item || {});
+          renderPreview(selectedItem);
+        }
+      })
+      .catch(function (err) {
+        if (detailRequestIdByFilename[filename] !== requestId) return;
+
+        detailStateByFilename[filename] = {
+          status: "error",
+          item: null,
+          message: buildPendingDetailErrorMessage(err)
+        };
+
+        if (selectedItem && selectedItem.filename === filename) {
+          renderPreview(selectedItem);
+        }
+      });
+  }
+
   function renderFullContentMarkup(state) {
     if (!state || state.status === "idle") {
       return '<div class="preview-inline-note">Full content is not loaded yet.</div>';
@@ -400,6 +530,14 @@
       return;
     }
 
+    var detailState = getDetailState(filename);
+    if (detailState.status === "loaded" && detailState.item && typeof detailState.item.content === "string") {
+      fullContentCache[filename] = detailState.item.content;
+      fullContentStateByFilename[filename] = { status: "loaded", content: detailState.item.content };
+      renderFullContentForCurrentSelection(filename);
+      return;
+    }
+
     var requestId = ++openFullRequestSeq;
     openFullRequestIdByFilename[filename] = requestId;
     fullContentStateByFilename[filename] = { status: "loading" };
@@ -409,10 +547,18 @@
       .then(function (item) {
         if (openFullRequestIdByFilename[filename] !== requestId) return;
 
+        detailCache[filename] = Object.assign({}, detailCache[filename] || {}, item || {});
+        detailStateByFilename[filename] = { status: "loaded", item: detailCache[filename] };
         var content = (item && typeof item.content === "string") ? item.content : "";
         fullContentCache[filename] = content;
         fullContentStateByFilename[filename] = { status: "loaded", content: content };
+        if (selectedItem && selectedItem.filename === filename) {
+          selectedItem = Object.assign({}, selectedItem, item || {});
+        }
         renderFullContentForCurrentSelection(filename);
+        if (selectedItem && selectedItem.filename === filename) {
+          renderPreview(selectedItem);
+        }
       })
       .catch(function (err) {
         if (openFullRequestIdByFilename[filename] !== requestId) return;
@@ -442,6 +588,12 @@
 
   function buildOpenFullErrorMessage(err) {
     var msg = "Failed to load full content";
+    if (err && err.status) msg += " (" + err.status + ")";
+    return msg + ".";
+  }
+
+  function buildPendingDetailErrorMessage(err) {
+    var msg = "Failed to load item detail";
     if (err && err.status) msg += " (" + err.status + ")";
     return msg + ".";
   }
