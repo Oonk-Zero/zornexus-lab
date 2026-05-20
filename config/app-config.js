@@ -30,7 +30,7 @@ window.ZORNOX_CONFIG = {
    * Must match API_TOKEN in the backend .env file.
    * Leave empty to send no auth header (only valid when ENABLE_AUTH=false on backend).
    */
-  apiToken: "sOrdM50zqwtDYmzo7ta2vqV7ifGNUs5q",
+  apiToken: "",  // Set at deploy time — never hardcode a live token here
 
   /**
    * Explicit endpoint paths — override individual entries if routes differ.
