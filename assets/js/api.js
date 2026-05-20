@@ -40,8 +40,8 @@ const API = (() => {
   async function request(url, options) {
     const opts = Object.assign({ headers: {} }, options);
 
-    // Inject bearer token from config if set
-    const token = cfg().apiToken;
+    // Token sourced exclusively from sessionStorage via AUTH — static config never used
+    const token = typeof AUTH !== 'undefined' ? AUTH.getToken() : '';
     if (token) {
       opts.headers["Authorization"] = "Bearer " + token;
     }
@@ -63,6 +63,7 @@ const API = (() => {
       let body = null;
       try { body = await res.json(); } catch (_) { /* ignore */ }
       err.body = body;
+      if (err.status === 401 && typeof AUTH !== 'undefined') AUTH.onAuthError();
       throw err;
     }
 
